@@ -25,6 +25,8 @@ type wikipediaSearchResult struct {
 	Content string `json:"content"`
 }
 
+var MAX_SENTENCES = 10
+
 // Start TextRobot
 func (robot *TextRobot) Start(state *State) error {
 	logrus.Info("📜 [TEXT] => Starting...")
@@ -43,10 +45,8 @@ func (robot *TextRobot) Start(state *State) error {
 
 	state.SourceContentOriginal = wikipediaSearchAlgorithmResult.Content
 	state.SourceContentSanitized = sanitizedContent
-	state.Sentences = sentences
+	state.Sentences = sentences[0:MAX_SENTENCES]
 
-	test, _ := json.Marshal(sentences[1:10])
-	logrus.Info(string(test))
 	return nil
 }
 
@@ -156,7 +156,7 @@ func (robot *TextRobot) removeDatesInParentheses(text string) string {
 }
 
 func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) ([]string, error) {
-	sentencesTokenizer, err := robot.instantiateSentencesTokenizer()
+	sentencesTokenizer, err := robot.createSentencesTokenizer()
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) ([]str
 	return sentencesText, nil
 }
 
-func (robot *TextRobot) instantiateSentencesTokenizer() (*sentences.DefaultSentenceTokenizer, error) {
+func (robot *TextRobot) createSentencesTokenizer() (*sentences.DefaultSentenceTokenizer, error) {
 	// Compiling language specific data into a binary file can be accomplished
 	// by using `make <lang>` and then loading the `json` data:
 	trainingData, err := data.Asset("data/english.json")

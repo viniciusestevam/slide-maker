@@ -7,13 +7,17 @@ import (
 	"strings"
 
 	algorithmiaAPI "github.com/algorithmiaio/algorithmia-go"
+
 	"gopkg.in/neurosnap/sentences.v1"
 	"gopkg.in/neurosnap/sentences.v1/data"
+
+	"github.com/IBM/go-sdk-core/core"
+	nlu "github.com/watson-developer-cloud/go-sdk/naturallanguageunderstandingv1"
 
 	"github.com/sirupsen/logrus"
 )
 
-// TextRobot handles NLP and search Wikipedia based on searchTerm and prefix from state
+// TextRobot handles NLU and search Wikipedia based on searchTerm and prefix from state
 type TextRobot struct{}
 
 type algorithmSearchInput struct {
@@ -25,11 +29,23 @@ type wikipediaSearchResult struct {
 	Content string `json:"content"`
 }
 
-var MAX_SENTENCES = 10
+var (
+	MAX_SENTENCES           int
+	WIKIPEDIA_ALGORITHM_KEY string
+	ALGORITHMIA_API_KEY     string
+	WATSON_API_KEY          string
+	WATSON_NLU_URL          string
+)
 
 // Start TextRobot
 func (robot *TextRobot) Start(state *State) error {
 	logrus.Info("📜 [TEXT] => Starting...")
+
+	MAX_SENTENCES = 10
+	WIKIPEDIA_ALGORITHM_KEY = "web/WikipediaParser/0.1.2"
+	ALGORITHMIA_API_KEY = os.Getenv("ALGORITHMIA_API_KEY")
+	WATSON_API_KEY = os.Getenv("WATSON_API_KEY")
+	WATSON_NLU_URL = os.Getenv("WATSON_NLU_URL")
 
 	wikipediaSearchAlgorithmResult, err := robot.fetchContentFromWikipedia(state.SearchTerm)
 	if err != nil {
@@ -42,16 +58,23 @@ func (robot *TextRobot) Start(state *State) error {
 	if err != nil {
 		return err
 	}
+	sentences = sentences[0:MAX_SENTENCES]
+	keywords, err := robot.fetchWatsonAndReturnKeywords(sentences)
+	if err != nil {
+		return err
+	}
 
 	state.SourceContentOriginal = wikipediaSearchAlgorithmResult.Content
 	state.SourceContentSanitized = sanitizedContent
-	state.Sentences = sentences[0:MAX_SENTENCES]
+	state.Sentences = sentences
+	state.Keywords = keywords
 
+	logrus.Info(keywords)
 	return nil
 }
 
 func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) (*wikipediaSearchResult, error) {
-	logrus.Info("📜 [TEXT] => Fetching content from Wikipedia")
+	logrus.Info("📜 [TEXT] => Fetching content from Wikipedia...")
 
 	wikipediaSearchRawContent, err := robot.fetchWikipediaSearchAndParseResult(searchTerm)
 	if err != nil {
@@ -62,15 +85,13 @@ func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) (*wikipedia
 		return nil, err
 	}
 
-	logrus.Info("📜 [TEXT] => Fetching done! ")
+	logrus.Info("📜 [TEXT] => Fetching done!")
 	return contentMapped, nil
 }
 
 func (robot *TextRobot) fetchWikipediaSearchAndParseResult(searchTerm string) (map[string]interface{}, error) {
-	algorithmiaAPIKey := os.Getenv("ALGORITHMIA_API_KEY")
-	algorithmia := algorithmiaAPI.NewClient(algorithmiaAPIKey, "")
-
-	wikipediaAlgo, err := algorithmia.Algo("web/WikipediaParser/0.1.2")
+	algorithmia := algorithmiaAPI.NewClient(ALGORITHMIA_API_KEY, "")
+	wikipediaAlgo, err := algorithmia.Algo(WIKIPEDIA_ALGORITHM_KEY)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error": err,
@@ -186,4 +207,48 @@ func (robot *TextRobot) createSentencesTokenizer() (*sentences.DefaultSentenceTo
 	}
 	// create the default sentence tokenizer
 	return sentences.NewSentenceTokenizer(training), nil
+}
+
+func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []string) ([]string, error) {
+	logrus.Info("📜 [TEXT] => Analyzing content and recognizing keywords...")
+	nluSvc, err := robot.createWatsonNLUService()
+	if err != nil {
+		return nil, err
+	}
+
+	keywords := []string{}
+
+	for _, sentence := range sentences {
+		analyzeOptions := nluSvc.NewAnalyzeOptions(&nlu.Features{
+			Keywords: &nlu.KeywordsOptions{},
+		}).SetText(sentence)
+
+		analyzeResult, _, _ := nluSvc.Analyze(analyzeOptions)
+		for _, keywordResult := range analyzeResult.Keywords {
+			keywords = append(keywords, *keywordResult.Text)
+		}
+	}
+
+	logrus.Info(keywords)
+	logrus.Info("📜 [TEXT] => Keywords recognized.")
+	return keywords, nil
+}
+
+func (robot *TextRobot) createWatsonNLUService() (*nlu.NaturalLanguageUnderstandingV1, error) {
+	// Instantiate the Watson Natural Language Understanding service
+	authenticator := &core.IamAuthenticator{
+		ApiKey: WATSON_API_KEY,
+	}
+	service, err := nlu.
+		NewNaturalLanguageUnderstandingV1(&nlu.NaturalLanguageUnderstandingV1Options{
+			URL:           WATSON_NLU_URL,
+			Version:       "2017-02-27",
+			Authenticator: authenticator,
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return service, nil
 }

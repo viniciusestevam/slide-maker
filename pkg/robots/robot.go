@@ -7,6 +7,7 @@ type State struct {
 	SourceContentOriginal  string
 	SourceContentSanitized string
 	Sentences              []string
+	Keywords               []string
 }
 
 // Robot is the base for all robots

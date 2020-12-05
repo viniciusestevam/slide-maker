@@ -85,7 +85,7 @@ func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) (*wikipedia
 		return nil, err
 	}
 
-	logrus.Info("📜 [TEXT] => Fetching done!")
+	logrus.Info("📜 [TEXT] => Fetch done!")
 	return contentMapped, nil
 }
 

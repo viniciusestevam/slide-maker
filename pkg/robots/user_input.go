@@ -61,6 +61,7 @@ func (robot *UserInputRobot) askForPrefix() (string, error) {
 	}
 
 	prefixIndex, err := strconv.Atoi(selected)
+	prefixIndex = prefixIndex - 1
 	if prefixIndex > len(prefixes) || prefixIndex < 0 || err != nil {
 		fmt.Println("✖ Invalid option, please try again.")
 		robot.askForPrefix()

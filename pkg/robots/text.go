@@ -59,7 +59,7 @@ func (robot *TextRobot) Start(state *State) error {
 		return err
 	}
 	sentences = sentences[0:MAX_SENTENCES]
-	keywords, err := robot.fetchWatsonAndReturnKeywords(sentences)
+	sentences, err = robot.fetchWatsonAndReturnKeywords(sentences)
 	if err != nil {
 		return err
 	}
@@ -67,9 +67,7 @@ func (robot *TextRobot) Start(state *State) error {
 	state.SourceContentOriginal = wikipediaSearchAlgorithmResult.Content
 	state.SourceContentSanitized = sanitizedContent
 	state.Sentences = sentences
-	state.Keywords = keywords
 
-	logrus.Info(keywords)
 	return nil
 }
 
@@ -176,20 +174,20 @@ func (robot *TextRobot) removeDatesInParentheses(text string) string {
 	return text
 }
 
-func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) ([]string, error) {
+func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) ([]*Sentence, error) {
 	sentencesTokenizer, err := robot.createSentencesTokenizer()
 	if err != nil {
 		return nil, err
 	}
 
-	sentences := sentencesTokenizer.Tokenize(sourceContentSanitized)
-	sentencesText := []string{}
+	tokenizedText := sentencesTokenizer.Tokenize(sourceContentSanitized)
+	sentencesWithText := []*Sentence{}
 
-	for _, s := range sentences {
-		sentencesText = append(sentencesText, s.Text)
+	for _, s := range tokenizedText {
+		sentencesWithText = append(sentencesWithText, &Sentence{Text: s.Text})
 	}
 
-	return sentencesText, nil
+	return sentencesWithText, nil
 }
 
 func (robot *TextRobot) createSentencesTokenizer() (*sentences.DefaultSentenceTokenizer, error) {
@@ -209,29 +207,26 @@ func (robot *TextRobot) createSentencesTokenizer() (*sentences.DefaultSentenceTo
 	return sentences.NewSentenceTokenizer(training), nil
 }
 
-func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []string) ([]string, error) {
+func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) ([]*Sentence, error) {
 	logrus.Info("📜 [TEXT] => Analyzing content and recognizing keywords...")
 	nluSvc, err := robot.createWatsonNLUService()
 	if err != nil {
 		return nil, err
 	}
 
-	keywords := []string{}
-
 	for _, sentence := range sentences {
 		analyzeOptions := nluSvc.NewAnalyzeOptions(&nlu.Features{
 			Keywords: &nlu.KeywordsOptions{},
-		}).SetText(sentence)
+		}).SetText(sentence.Text)
 
 		analyzeResult, _, _ := nluSvc.Analyze(analyzeOptions)
 		for _, keywordResult := range analyzeResult.Keywords {
-			keywords = append(keywords, *keywordResult.Text)
+			sentence.Keywords = append(sentence.Keywords, *keywordResult.Text)
 		}
 	}
 
-	logrus.Info(keywords)
 	logrus.Info("📜 [TEXT] => Keywords recognized.")
-	return keywords, nil
+	return sentences, nil
 }
 
 func (robot *TextRobot) createWatsonNLUService() (*nlu.NaturalLanguageUnderstandingV1, error) {

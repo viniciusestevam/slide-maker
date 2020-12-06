@@ -23,8 +23,10 @@ func main() {
 func Start() {
 	state := &robots.State{}
 	robotUserInput := &robots.UserInputRobot{}
+	robotImage := &robots.ImageRobot{}
 	robotText := &robots.TextRobot{}
 
 	robotUserInput.Start(state)
 	robotText.Start(state)
+	robotImage.Start(state)
 }

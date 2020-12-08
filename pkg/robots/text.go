@@ -30,7 +30,7 @@ type wikipediaSearchResult struct {
 
 // Start TextRobot
 func (robot *TextRobot) Start(state *State) {
-	log.Printf("[text] => Starting...")
+	log.Println("[text] => Starting...")
 
 	wikipediaSearchAlgorithmResult := robot.fetchContentFromWikipedia(state.SearchTerm)
 	sanitizedContent := robot.sanitizeContent(wikipediaSearchAlgorithmResult.Content)
@@ -44,16 +44,16 @@ func (robot *TextRobot) Start(state *State) {
 	state.SourceContentSanitized = sanitizedContent
 	state.Sentences = sentencesWithKeywords
 
-	log.Printf("[text] => Done, goodbye ^^")
+	log.Println("[text] => Done, goodbye ^^")
 }
 
 func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) *wikipediaSearchResult {
-	log.Printf("[text] => Fetching content from Wikipedia...")
+	log.Println("[text] => Fetching content from Wikipedia...")
 
 	wikipediaSearchRawContent := robot.fetchWikipediaSearchAndParseResult(searchTerm)
 	contentMapped := robot.unmarshalWikipediaResponse(wikipediaSearchRawContent)
 
-	log.Printf("[text] => Fetch done!")
+	log.Println("[text] => Fetch done!")
 	return contentMapped
 }
 
@@ -64,7 +64,7 @@ func (robot *TextRobot) fetchWikipediaSearchAndParseResult(searchTerm string) ma
 	algorithmia := algorithmiaAPI.NewClient(algorithmiaAPIKey, "")
 	wikipediaAlgo, err := algorithmia.Algo(wikipediaAlgorithmKey)
 	if err != nil {
-		log.Fatalf("[text] => Error trying to instantiate algorithmia Wikipedia parser", err)
+		log.Fatalf("\n[text] => Error trying to instantiate algorithmia Wikipedia parser %v", err)
 	}
 
 	searchInputRaw, _ := json.Marshal(&algorithmSearchInput{Search: searchTerm})
@@ -72,7 +72,7 @@ func (robot *TextRobot) fetchWikipediaSearchAndParseResult(searchTerm string) ma
 
 	wikipediaSearchRawResponse, err := wikipediaAlgo.Pipe(JSONSearchInput)
 	if err != nil {
-		log.Fatalf("[text] => Error on wikipedia search algorithm", err)
+		log.Fatalf("\n[text] => Error on wikipedia search algorithm %v", err)
 	}
 
 	return wikipediaSearchRawResponse.(*algorithmiaAPI.AlgoResponse).Result.(map[string]interface{})
@@ -84,7 +84,7 @@ func (robot *TextRobot) unmarshalWikipediaResponse(rawResponse map[string]interf
 	err = json.Unmarshal(JSONResponse, unmarshalledResponse)
 
 	if err != nil {
-		log.Fatalf("[text] => Error on wikipedia response unmarshalling")
+		log.Fatalf("\n[text] => Error on wikipedia response unmarshalling")
 	}
 	return unmarshalledResponse
 }
@@ -146,14 +146,14 @@ func (robot *TextRobot) createSentencesTokenizer() *sentences.DefaultSentenceTok
 	// load the training data
 	training, err := sentences.LoadTraining(trainingData)
 	if err != nil {
-		log.Fatalf("[text] => Error on loading sentence tokenizer training", err)
+		log.Fatalf("\n[text] => Error on loading sentence tokenizer training %v", err)
 	}
 	// create the default sentence tokenizer
 	return sentences.NewSentenceTokenizer(training)
 }
 
 func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) []*Sentence {
-	log.Printf("[text] => Analyzing content and recognizing keywords...")
+	log.Println("[text] => Analyzing content and recognizing keywords...")
 	nluSvc := robot.createWatsonNLUService()
 
 	for _, sentence := range sentences {
@@ -167,7 +167,7 @@ func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) []*S
 		}
 	}
 
-	log.Printf("[text] => Keywords recognized")
+	log.Println("[text] => Keywords recognized")
 	return sentences
 }
 
@@ -184,7 +184,7 @@ func (robot *TextRobot) createWatsonNLUService() *nlu.NaturalLanguageUnderstandi
 		})
 
 	if err != nil {
-		log.Fatalf("[text] => Error creating NLU service", err)
+		log.Fatalf("\n[text] => Error creating NLU service %v", err)
 	}
 
 	return service

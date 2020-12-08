@@ -2,6 +2,7 @@ package robots
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -30,7 +31,7 @@ type wikipediaSearchResult struct {
 
 // Start TextRobot
 func (robot *TextRobot) Start(state *State) {
-	log.Println("[text] => Starting...")
+	fmt.Println("[text] => Starting...")
 
 	wikipediaSearchAlgorithmResult := robot.fetchContentFromWikipedia(state.SearchTerm)
 	sanitizedContent := robot.sanitizeContent(wikipediaSearchAlgorithmResult.Content)
@@ -44,16 +45,16 @@ func (robot *TextRobot) Start(state *State) {
 	state.SourceContentSanitized = sanitizedContent
 	state.Sentences = sentencesWithKeywords
 
-	log.Println("[text] => Done, goodbye ^^")
+	fmt.Println("[text] => Done, goodbye ^^")
 }
 
 func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) *wikipediaSearchResult {
-	log.Println("[text] => Fetching content from Wikipedia...")
+	fmt.Println("[text] => Fetching content from Wikipedia...")
 
 	wikipediaSearchRawContent := robot.fetchWikipediaSearchAndParseResult(searchTerm)
 	contentMapped := robot.unmarshalWikipediaResponse(wikipediaSearchRawContent)
 
-	log.Println("[text] => Fetch done!")
+	fmt.Println("[text] => Fetch done!")
 	return contentMapped
 }
 
@@ -153,7 +154,7 @@ func (robot *TextRobot) createSentencesTokenizer() *sentences.DefaultSentenceTok
 }
 
 func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) []*Sentence {
-	log.Println("[text] => Analyzing content and recognizing keywords...")
+	fmt.Println("[text] => Analyzing content and recognizing keywords...")
 	nluSvc := robot.createWatsonNLUService()
 
 	for _, sentence := range sentences {
@@ -167,7 +168,7 @@ func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) []*S
 		}
 	}
 
-	log.Println("[text] => Keywords recognized")
+	fmt.Println("[text] => Keywords recognized")
 	return sentences
 }
 

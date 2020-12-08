@@ -1,6 +1,7 @@
 package robots
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,11 +15,11 @@ type ImageRobot struct{}
 
 // Start ImageRobot
 func (robot *ImageRobot) Start(state *State) {
-	log.Println("[image] => Starting...")
+	fmt.Println("[image] => Starting...")
 
 	robot.fetchImageOfAllSentences(state.Sentences, state.SearchTerm)
 
-	log.Println("[image] => Done, Tchau :P")
+	fmt.Println("[image] => Done, Tchau :P")
 }
 
 func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchTerm string) []*Sentence {
@@ -30,11 +31,12 @@ func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchT
 		var searchQuery string
 		if index == 0 {
 			searchQuery = searchTerm
+			fmt.Printf("[image] => Querying images with: %s", searchQuery)
 		} else {
 			searchQuery = searchTerm + " " + sentence.Keywords[0]
+			fmt.Printf("\n[image] => Querying images with: %s", searchQuery)
 		}
 
-		log.Printf("\n[image] => Querying images with: %s", searchQuery)
 		resp, err := search.Q(searchQuery).Do()
 		if err != nil {
 			log.Fatalf("\n[image] => Error on google search %v", err)

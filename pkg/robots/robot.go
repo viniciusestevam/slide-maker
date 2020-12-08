@@ -19,5 +19,5 @@ type State struct {
 
 // Robot is the base for all robots
 type Robot interface {
-	Start(state *State) error
+	Start(state *State)
 }

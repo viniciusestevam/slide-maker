@@ -2,79 +2,66 @@ package robots
 
 import (
 	"bufio"
-	"fmt"
+	"errors"
+	"log"
 	"os"
 	"strconv"
-
-	"github.com/sirupsen/logrus"
 )
 
 // UserInputRobot handles user's input
 type UserInputRobot struct{}
 
 // Start UserInputRobot
-func (robot *UserInputRobot) Start(state *State) error {
-	searchTerm, prefix, err := robot.requestUserInput(state)
-	if err != nil {
-		logrus.Error(err.Error())
-		return err
-	}
+func (robot *UserInputRobot) Start(state *State) {
+	searchTerm := robot.askForSearchTerm()
+	prefix := robot.askForPrefix()
 
 	state.SearchTerm = searchTerm
 	state.Prefix = prefix
 
-	logrus.WithFields(logrus.Fields{
-		"searchTerm": state.SearchTerm,
-		"prefix":     state.Prefix,
-	}).Info("⌨ [USER_INPUT] => Successfully requested user's input")
-	return nil
+	log.Println("[user_input] => Successfully requested user's input")
+	log.Printf("[user_input] => Search term: %s\n", searchTerm)
+	log.Printf("[user_input] => Prefix: %s\n", prefix)
+
+	log.Println("[user_input] => Done, adiós xD")
 }
 
-func (robot *UserInputRobot) requestUserInput(state *State) (string, string, error) {
-	searchTerm, err := robot.askForSearchTerm()
+func (robot *UserInputRobot) askForSearchTerm() string {
+	log.Println("Type a Wikipedia search term:")
+	searchTerm, err := robot.readline()
 	if err != nil {
-		return "", "", err
+		log.Fatalf("\n[user_input] => Error asking for search term %v", err)
 	}
-
-	prefix, err := robot.askForPrefix()
-	if err != nil {
-		return "", "", err
-	}
-	return searchTerm, prefix, nil
+	return searchTerm
 }
 
-func (robot *UserInputRobot) askForSearchTerm() (string, error) {
-	fmt.Println("⌨ Type a Wikipedia search term:")
-	return robot.readline()
-}
-
-func (robot *UserInputRobot) askForPrefix() (string, error) {
+func (robot *UserInputRobot) askForPrefix() string {
+	log.Println("Select one option:")
 	prefixes := [3]string{"Who is", "What is", "The history of"}
-	fmt.Println("\n⌨ Select one option:")
-	for i := 0; i < len(prefixes); i++ {
-		fmt.Printf("[%d] - %s\n", i+1, prefixes[i])
+	for i, prefix := range prefixes {
+		log.Printf("[%d] - %s\n", i+1, prefix)
 	}
 
 	selected, err := robot.readline()
 	if err != nil {
-		return "", err
+		log.Fatalf("\n[user_input] => Error asking for prefix %v", err)
 	}
 
 	prefixIndex, err := strconv.Atoi(selected)
 	prefixIndex = prefixIndex - 1
 	if prefixIndex > len(prefixes) || prefixIndex < 0 || err != nil {
-		fmt.Println("✖ Invalid option, please try again.")
+		log.Println("✖ Invalid option, please try again.")
 		robot.askForPrefix()
 	}
 
-	return prefixes[prefixIndex], nil
+	return prefixes[prefixIndex]
 }
 
 func (robot *UserInputRobot) readline() (string, error) {
-	fmt.Print("> ")
+	log.Print("> ")
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		return scanner.Text(), nil
 	}
-	return "", ErrReadline
+	return "", errors.New("✖ Error reading user's input")
 }

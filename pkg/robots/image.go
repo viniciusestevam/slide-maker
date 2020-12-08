@@ -31,10 +31,10 @@ func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchT
 		var searchQuery string
 		if index == 0 {
 			searchQuery = searchTerm
-			fmt.Printf("[image] => Querying images with: %s", searchQuery)
+			fmt.Printf("[image] => Querying images with: %s\n", searchQuery)
 		} else {
 			searchQuery = searchTerm + " " + sentence.Keywords[0]
-			fmt.Printf("\n[image] => Querying images with: %s", searchQuery)
+			fmt.Printf("[image] => Querying images with: %s\n", searchQuery)
 		}
 
 		resp, err := search.Q(searchQuery).Do()

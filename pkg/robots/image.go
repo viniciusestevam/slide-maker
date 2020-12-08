@@ -30,7 +30,7 @@ func (robot *ImageRobot) Start(state *State) error {
 
 func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchTerm string) ([]*Sentence, error) {
 	customSearchService, _ := robot.createGoogleCustomSearchAPIService()
-	search := customSearchService.Cse.List().Cx(CX).SearchType("image")
+	search := customSearchService.Cse.List().Cx(CX).SearchType("image").Num(2)
 
 	for index, sentence := range sentences {
 		var searchQuery string
@@ -40,6 +40,7 @@ func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchT
 			searchQuery = searchTerm + " " + sentence.Keywords[0]
 		}
 
+		logrus.Info("🖼 [IMAGE] => Querying images with: " + searchQuery)
 		resp, _ := search.Q(searchQuery).Do()
 		for _, image := range resp.Items {
 			sentence.Images = append(sentence.Images, image.Link)
@@ -51,7 +52,6 @@ func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchT
 
 func (robot *ImageRobot) createGoogleCustomSearchAPIService() (*customsearch.Service, error) {
 	client := &http.Client{Transport: &transport.APIKey{Key: GOOGLE_API_KEY}}
-
 	svc, err := customsearch.New(client)
 	if err != nil {
 		return nil, err

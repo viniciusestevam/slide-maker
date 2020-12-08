@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
+
 	"github.com/estevam31/slide-maker/pkg/robots"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
@@ -29,4 +32,7 @@ func Start() {
 	robotUserInput.Start(state)
 	robotText.Start(state)
 	robotImage.Start(state)
+
+	json, _ := json.MarshalIndent(state, "", " ")
+	_ = ioutil.WriteFile("result.json", json, 0644)
 }

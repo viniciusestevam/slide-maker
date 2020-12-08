@@ -14,11 +14,11 @@ type ImageRobot struct{}
 
 // Start ImageRobot
 func (robot *ImageRobot) Start(state *State) {
-	log.Printf("[image] => Starting...")
+	log.Println("[image] => Starting...")
 
 	robot.fetchImageOfAllSentences(state.Sentences, state.SearchTerm)
 
-	log.Printf("[image] => Done, Tchau :P")
+	log.Println("[image] => Done, Tchau :P")
 }
 
 func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchTerm string) []*Sentence {
@@ -34,10 +34,10 @@ func (robot *ImageRobot) fetchImageOfAllSentences(sentences []*Sentence, searchT
 			searchQuery = searchTerm + " " + sentence.Keywords[0]
 		}
 
-		log.Printf("[image] => Querying images with: " + searchQuery)
+		log.Printf("\n[image] => Querying images with: %s", searchQuery)
 		resp, err := search.Q(searchQuery).Do()
 		if err != nil {
-			log.Fatalf("[image] => Error on google search", err)
+			log.Fatalf("\n[image] => Error on google search %v", err)
 		}
 
 		for _, image := range resp.Items {
@@ -53,7 +53,7 @@ func (robot *ImageRobot) createGoogleCustomSearchAPIService() *customsearch.Serv
 	client := &http.Client{Transport: &transport.APIKey{Key: googleAPIKey}}
 	svc, err := customsearch.New(client)
 	if err != nil {
-		log.Fatalf("[image] => Error trying to create google custom search service", err)
+		log.Fatalf("\n[image] => Error trying to create google custom search service %v", err)
 	}
 	return svc
 }

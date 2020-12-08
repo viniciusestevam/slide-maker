@@ -8,6 +8,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/watson-developer-cloud/go-sdk v1.7.0
+	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	google.golang.org/api v0.35.0
 	gopkg.in/neurosnap/sentences.v1 v1.0.6
 )

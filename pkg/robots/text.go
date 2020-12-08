@@ -2,6 +2,7 @@ package robots
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/IBM/go-sdk-core/core"
 	nlu "github.com/watson-developer-cloud/go-sdk/naturallanguageunderstandingv1"
-
-	"github.com/sirupsen/logrus"
 )
 
 // TextRobot handles NLU and search Wikipedia based on searchTerm and prefix from state
@@ -29,113 +28,65 @@ type wikipediaSearchResult struct {
 	Content string `json:"content"`
 }
 
-var (
-	MAX_SENTENCES           int
-	WIKIPEDIA_ALGORITHM_KEY string
-	ALGORITHMIA_API_KEY     string
-	WATSON_API_KEY          string
-	WATSON_NLU_URL          string
-)
-
 // Start TextRobot
-func (robot *TextRobot) Start(state *State) error {
-	logrus.Info("📜 [TEXT] => Starting...")
+func (robot *TextRobot) Start(state *State) {
+	log.Printf("[text] => Starting...")
 
-	MAX_SENTENCES = 10
-	WIKIPEDIA_ALGORITHM_KEY = "web/WikipediaParser/0.1.2"
-	ALGORITHMIA_API_KEY = os.Getenv("ALGORITHMIA_API_KEY")
-	WATSON_API_KEY = os.Getenv("WATSON_API_KEY")
-	WATSON_NLU_URL = os.Getenv("WATSON_NLU_URL")
-
-	wikipediaSearchAlgorithmResult, err := robot.fetchContentFromWikipedia(state.SearchTerm)
-	if err != nil {
-		return err
-	}
-
+	wikipediaSearchAlgorithmResult := robot.fetchContentFromWikipedia(state.SearchTerm)
 	sanitizedContent := robot.sanitizeContent(wikipediaSearchAlgorithmResult.Content)
 
-	sentences, err := robot.splitIntoSentences(sanitizedContent)
-	if err != nil {
-		return err
-	}
-	sentences = sentences[0:MAX_SENTENCES]
-	sentences, err = robot.fetchWatsonAndReturnKeywords(sentences)
-	if err != nil {
-		return err
-	}
+	maxSentences := 10
+	sentences := robot.splitIntoSentences(sanitizedContent)
+	sentencesSliced := sentences[0:maxSentences]
+	sentencesWithKeywords := robot.fetchWatsonAndReturnKeywords(sentencesSliced)
 
 	state.SourceContentOriginal = wikipediaSearchAlgorithmResult.Content
 	state.SourceContentSanitized = sanitizedContent
-	state.Sentences = sentences
+	state.Sentences = sentencesWithKeywords
 
-	return nil
+	log.Printf("[text] => Done, goodbye ^^")
 }
 
-func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) (*wikipediaSearchResult, error) {
-	logrus.Info("📜 [TEXT] => Fetching content from Wikipedia...")
+func (robot *TextRobot) fetchContentFromWikipedia(searchTerm string) *wikipediaSearchResult {
+	log.Printf("[text] => Fetching content from Wikipedia...")
 
-	wikipediaSearchRawContent, err := robot.fetchWikipediaSearchAndParseResult(searchTerm)
-	if err != nil {
-		return nil, err
-	}
-	contentMapped, err := robot.unmarshalWikipediaResponse(wikipediaSearchRawContent)
-	if err != nil {
-		return nil, err
-	}
+	wikipediaSearchRawContent := robot.fetchWikipediaSearchAndParseResult(searchTerm)
+	contentMapped := robot.unmarshalWikipediaResponse(wikipediaSearchRawContent)
 
-	logrus.Info("📜 [TEXT] => Fetch done!")
-	return contentMapped, nil
+	log.Printf("[text] => Fetch done!")
+	return contentMapped
 }
 
-func (robot *TextRobot) fetchWikipediaSearchAndParseResult(searchTerm string) (map[string]interface{}, error) {
-	algorithmia := algorithmiaAPI.NewClient(ALGORITHMIA_API_KEY, "")
-	wikipediaAlgo, err := algorithmia.Algo(WIKIPEDIA_ALGORITHM_KEY)
+func (robot *TextRobot) fetchWikipediaSearchAndParseResult(searchTerm string) map[string]interface{} {
+	wikipediaAlgorithmKey := "web/WikipediaParser/0.1.2"
+	algorithmiaAPIKey := os.Getenv("ALGORITHMIA_API_KEY")
+
+	algorithmia := algorithmiaAPI.NewClient(algorithmiaAPIKey, "")
+	wikipediaAlgo, err := algorithmia.Algo(wikipediaAlgorithmKey)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("📜 [TEXT] => " + ErrAlgorithmInstatiation.Error())
-		return nil, ErrAlgorithmInstatiation
+		log.Fatalf("[text] => Error trying to instantiate algorithmia Wikipedia parser", err)
 	}
 
-	searchInputRaw, err := json.Marshal(&algorithmSearchInput{Search: searchTerm})
+	searchInputRaw, _ := json.Marshal(&algorithmSearchInput{Search: searchTerm})
 	JSONSearchInput := string(searchInputRaw)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("📜 [TEXT] => Error on JSON Marshalling, aborting...")
-		return nil, err
-	}
 
 	wikipediaSearchRawResponse, err := wikipediaAlgo.Pipe(JSONSearchInput)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("📜 [TEXT] => " + ErrAlgorithm.Error())
-		return nil, ErrAlgorithm
+		log.Fatalf("[text] => Error on wikipedia search algorithm", err)
 	}
 
-	return wikipediaSearchRawResponse.(*algorithmiaAPI.AlgoResponse).Result.(map[string]interface{}), nil
+	return wikipediaSearchRawResponse.(*algorithmiaAPI.AlgoResponse).Result.(map[string]interface{})
 }
 
-func (robot *TextRobot) unmarshalWikipediaResponse(rawResponse map[string]interface{}) (*wikipediaSearchResult, error) {
+func (robot *TextRobot) unmarshalWikipediaResponse(rawResponse map[string]interface{}) *wikipediaSearchResult {
 	JSONResponse, err := json.Marshal(rawResponse)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("📜 [TEXT] => Error on JSON Marshalling, aborting...")
-		return nil, err
-	}
 	unmarshalledResponse := &wikipediaSearchResult{}
-
 	err = json.Unmarshal(JSONResponse, unmarshalledResponse)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("📜 [TEXT] => Error on JSON Unmarshalling, aborting...")
-		return nil, err
-	}
 
-	return unmarshalledResponse, nil
+	if err != nil {
+		log.Fatalf("[text] => Error on wikipedia response unmarshalling")
+	}
+	return unmarshalledResponse
 }
 
 func (robot *TextRobot) sanitizeContent(originalContent string) string {
@@ -174,11 +125,8 @@ func (robot *TextRobot) removeDatesInParentheses(text string) string {
 	return text
 }
 
-func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) ([]*Sentence, error) {
-	sentencesTokenizer, err := robot.createSentencesTokenizer()
-	if err != nil {
-		return nil, err
-	}
+func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) []*Sentence {
+	sentencesTokenizer := robot.createSentencesTokenizer()
 
 	tokenizedText := sentencesTokenizer.Tokenize(sourceContentSanitized)
 	sentencesWithText := []*Sentence{}
@@ -187,32 +135,26 @@ func (robot *TextRobot) splitIntoSentences(sourceContentSanitized string) ([]*Se
 		sentencesWithText = append(sentencesWithText, &Sentence{Text: s.Text})
 	}
 
-	return sentencesWithText, nil
+	return sentencesWithText
 }
 
-func (robot *TextRobot) createSentencesTokenizer() (*sentences.DefaultSentenceTokenizer, error) {
+func (robot *TextRobot) createSentencesTokenizer() *sentences.DefaultSentenceTokenizer {
 	// Compiling language specific data into a binary file can be accomplished
 	// by using `make <lang>` and then loading the `json` data:
-	trainingData, err := data.Asset("data/english.json")
-	if err != nil {
-		return nil, err
-	}
+	trainingData, _ := data.Asset("data/english.json")
 
 	// load the training data
 	training, err := sentences.LoadTraining(trainingData)
 	if err != nil {
-		return nil, err
+		log.Fatalf("[text] => Error on loading sentence tokenizer training", err)
 	}
 	// create the default sentence tokenizer
-	return sentences.NewSentenceTokenizer(training), nil
+	return sentences.NewSentenceTokenizer(training)
 }
 
-func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) ([]*Sentence, error) {
-	logrus.Info("📜 [TEXT] => Analyzing content and recognizing keywords...")
-	nluSvc, err := robot.createWatsonNLUService()
-	if err != nil {
-		return nil, err
-	}
+func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) []*Sentence {
+	log.Printf("[text] => Analyzing content and recognizing keywords...")
+	nluSvc := robot.createWatsonNLUService()
 
 	for _, sentence := range sentences {
 		analyzeOptions := nluSvc.NewAnalyzeOptions(&nlu.Features{
@@ -225,25 +167,25 @@ func (robot *TextRobot) fetchWatsonAndReturnKeywords(sentences []*Sentence) ([]*
 		}
 	}
 
-	logrus.Info("📜 [TEXT] => Keywords recognized.")
-	return sentences, nil
+	log.Printf("[text] => Keywords recognized")
+	return sentences
 }
 
-func (robot *TextRobot) createWatsonNLUService() (*nlu.NaturalLanguageUnderstandingV1, error) {
+func (robot *TextRobot) createWatsonNLUService() *nlu.NaturalLanguageUnderstandingV1 {
 	// Instantiate the Watson Natural Language Understanding service
 	authenticator := &core.IamAuthenticator{
-		ApiKey: WATSON_API_KEY,
+		ApiKey: os.Getenv("WATSON_API_KEY"),
 	}
 	service, err := nlu.
 		NewNaturalLanguageUnderstandingV1(&nlu.NaturalLanguageUnderstandingV1Options{
-			URL:           WATSON_NLU_URL,
+			URL:           os.Getenv("WATSON_NLU_URL"),
 			Version:       "2017-02-27",
 			Authenticator: authenticator,
 		})
 
 	if err != nil {
-		return nil, err
+		log.Fatalf("[text] => Error creating NLU service", err)
 	}
 
-	return service, nil
+	return service
 }

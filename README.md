@@ -8,5 +8,6 @@ This is a toy project inspired by Filipe Deschamps's [video-maker](https://githu
 - [x] Fetch images with keywords on google images
 - [x] Authenticate with Google to allow slides access
 - [x] Create and publish a slide on user's Google Slides
-- [ ] Add state content to slide
+- [x] Add state content to slide
+- [ ] Create better slide layout
 - [ ] Optimize fetching with go coroutines

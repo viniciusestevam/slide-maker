@@ -6,5 +6,7 @@ This is a toy project inspired by Filipe Deschamps's [video-maker](https://githu
 - [x] Search content on wikipedia
 - [x] Sanitize text and analyze content using MLaaS (NLU)
 - [x] Fetch images with keywords on google images
-- [ ] Create and publish a slide on user's Google Slides
+- [x] Authenticate with Google to allow slides access
+- [x] Create and publish a slide on user's Google Slides
+- [ ] Add state content to slide
 - [ ] Optimize fetching with go coroutines
